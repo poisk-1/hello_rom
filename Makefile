@@ -6,7 +6,7 @@ rom_size_kb = 32
 all: hello_rom.rom
 
 hello_rom.bin: $(src)
-	nasm -f bin -o $@ $(src)
+	nasm -f bin -o $@ -l hello_rom.lst $(src)
 
 romify: romify.c
 	gcc -o $@ -DROM_SIZE_KB=$(rom_size_kb) romify.c
