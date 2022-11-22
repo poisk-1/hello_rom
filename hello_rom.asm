@@ -29,7 +29,7 @@ section .text
 	call cls
 	DisplayString `Hello ROM!\r\n`
 
-	mov ax, 0x400
+	mov ax, 0x1800
 	mov es, ax
 
 more:
@@ -41,8 +41,8 @@ more:
 	call display_word
 	DisplayString ` READY!\r\n`
 
-	sub di, di
-	call display_memory_block
+	;sub di, di
+	;call display_memory_block
 
 	push ax
 	call read_char
@@ -75,9 +75,9 @@ fill_region:
 	mov cx, 0x4000
 	sub di, di
 .next_byte:
-	es mov al, [di]
+	mov al, [es:di]
 	xor al, bl ; mix
-	es mov [di], al
+	mov [es:di], al
 
 	inc di
 	loop .next_byte
@@ -100,9 +100,9 @@ invert_region:
 	mov cx, 0x4000
 	sub di, di
 .next_byte:
-	es mov al, [di]
+	mov al, [es:di]
 	not al ; invert
-	es mov [di], al
+	mov [es:di], al
 
 	inc di
 	loop .next_byte
@@ -131,7 +131,7 @@ check_region:
 	mov si, noise
 	sub di, di
 .next_byte:
-	es mov al, [di]
+	mov al, [es:di]
 	mov ah, [si]
 	xor ah, bl ; mix
 
@@ -172,7 +172,7 @@ check_inverted_region:
 	mov si, noise
 	sub di, di
 .next_byte:
-	es mov al, [di]
+	mov al, [es:di]
 	mov ah, [si]
 	xor ah, bl ; mix
 	not ah ; invert
@@ -234,7 +234,7 @@ display_memory_line:
 	sub ax, ax
 	mov cx, 0x10
 .next_byte:	
-	es mov al, [di]
+	mov al, [es:di]
 	call display_byte
 	mov al, ' '
 	call display_char
