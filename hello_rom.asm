@@ -40,6 +40,14 @@ next_test:
 	mov cx, 2 ; stride in CX
 
 next_block:
+	push bx
+	sub bx, ax ; remaining blocks in BX
+	cmp bx, cx ; 
+	jge full_stride ; is remaining blocks greater than stride?
+	mov cx, bx ; reduce stride to remaining blocks
+full_stride:
+	pop bx
+
 	DisplayString `Testing range `
 	call display_current_block_address
 	push ax
