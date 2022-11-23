@@ -27,30 +27,102 @@ section .text
 	mov ds, ax
 
 	call cls
-	DisplayString `Hello ROM!\r\n`
+	DisplayString `RAM test\r\n\r\n`
 
-	mov ax, 0x1800
-	mov es, ax
+next_test:
+	int 0x12 ; get memory size in KB in AX 
+	mov cl, 4
+	shr ax, cl
+	mov bx, ax ; number of 16K blocks in BX
 
-more:
-	call fill_region
-	call check_region
-	call invert_region
-	call check_inverted_region
+	mov ax, 1 ; don't test first 16K	
 
-	call display_word
-	DisplayString ` READY!\r\n`
+	mov cx, 2 ; stride in CX
 
-	;sub di, di
-	;call display_memory_block
-
+next_block:
+	DisplayString `Testing range `
+	call display_current_block_address
 	push ax
-	call read_char
+	add ax, cx
+	DisplayString `-`
+	call display_current_block_address
 	pop ax
 
-	add ax, 0x400
+	sub dx, dx
+
+	push ax
+	push cx
+stride_fill_region:
+	call setup_block_address
+	call fill_region
+	inc ax
+	loop stride_fill_region
+	pop cx
+	pop ax
+
+	push ax
+	push cx
+stride_check_region:
+	call setup_block_address
+	call check_region
+	inc ax
+	loop stride_check_region
+	pop cx
+	pop ax
+
+	push ax
+	push cx
+stride_invert_region:
+	call setup_block_address
+	call invert_region
+	inc ax
+	loop stride_invert_region
+	pop cx
+	pop ax
+
+	push cx
+stride_check_inverted_region:
+	call setup_block_address
+	call check_inverted_region
+	inc ax
+	loop stride_check_inverted_region
+	pop cx
+
+	cmp dx, 0
+	jne report_block_error
+	DisplayString ` OK\r\n`
+
+next_block_1:
+	cmp bx, ax
+	jg next_block
+	jmp next_test
+
+report_block_error:
+	DisplayString ` FAIL\r\n`
+	jmp next_block_1
+
+display_current_block_address:
+	push ax
+	push cx
+	mov cl, 10
+	shl ax, cl
+	call display_word
+	mov al, '0'
+	call display_char
+	pop cx
+	pop ax
+	ret
+
+	; Set ES to point to block number in AX
+setup_block_address:
+	push cx
+	push ax
+	mov cl, 10
+	shl ax, cl
 	mov es, ax
-	jmp more
+	pop ax
+	pop cx
+	ret
 
 	; Fill 16K region at [ES:00] with noise
 fill_region:
@@ -138,8 +210,7 @@ check_region:
 	cmp al, ah
 	je .ok
 
-	mov ax, di
-	call display_word
+	inc dx
 
 .ok:
 	inc si
@@ -155,6 +226,7 @@ check_region:
 	ret
 
 	; Check 16K region at [ES:00] with inverted noise
+	; Return: number of errors in DX
 check_inverted_region:
 	pushf
 	push ax
@@ -180,8 +252,7 @@ check_inverted_region:
 	cmp al, ah
 	je .ok
 
-	mov ax, di
-	call display_word
+	inc dx
 
 .ok:
 	inc si
