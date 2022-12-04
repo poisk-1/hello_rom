@@ -17,6 +17,8 @@ org 0
 region_size equ 0x4000
 ;region_size equ 0x200
 
+error_count equ 0xff * 4
+
 section .data
 noise:
 	incbin "noise.bin" 
@@ -32,32 +34,42 @@ section .text
 	call cls
 	DisplayString `RAM test\r\n\r\n`
 
+	call reset_error_count
+
+	mov cx, 1 ; stride in CX
+
 next_test:
 	int 0x12 ; get memory size in KB in AX 
+
+	push cx
 	mov cl, 4
 	shr ax, cl
-	mov bx, ax ; number of 16K blocks in BX
+	mov bx, ax ; number of blocks in BX
+	mov ax, 6 ; current block in AX (don't test first 96K)
+	pop cx
 
-	mov ax, 6 ; don't test first 96K	
-
-	mov cx, 2 ; stride in CX
+	push cx ; save stride
 
 next_block:
-	push bx
+	push bx ; save number of blocks
 	sub bx, ax ; remaining blocks in BX
 	cmp bx, cx ; 
-	jge full_stride ; is remaining blocks greater than stride?
+	jge full_stride ; is remaining blocks greater or equal than stride?
 	mov cx, bx ; reduce stride to remaining blocks
 full_stride:
-	pop bx
+	pop bx ; restore number of blocks
 
 	DisplayString `Testing range `
 	call display_current_block_address
 	push ax
 	add ax, cx
-	DisplayString `-`
+	DisplayString `-` 
 	call display_current_block_address
 	pop ax
+
+	DisplayString ` (` 
+	call display_current_block_stride
+	DisplayString `) ... ` 
 
 	sub dx, dx
 
@@ -101,17 +113,66 @@ stride_check_inverted_region:
 
 	cmp dx, 0
 	jne report_block_error
-	DisplayString ` OK\r\n`
+	DisplayString `OK   `
 
-next_block_1:
+finish_block:
+	call display_error_count
+	DisplayString `\r\n`
 	cmp bx, ax
 	jg next_block
+	pop cx ; restore stride
+	inc cx
+	cmp cx, bx
+	jle increase_stride ; is stride less or equal then number of blocks?
+	mov cx, 1 ; reset to stride of 1 block
+increase_stride:
 	jmp next_test
 
 report_block_error:
-	DisplayString ` FAIL\r\n`
-	jmp next_block_1
+	DisplayString `FAIL `
+	call add_to_error_count
+	jmp finish_block
 
+reset_error_count:
+	push ax
+	push dx
+	push ds
+	mov ax, 0
+	mov ds, ax
+	mov [error_count], ax
+	mov [error_count + 2], ax
+	pop ds
+	pop dx
+	pop ax
+	ret
+
+	; Add DX to dword error count
+add_to_error_count:
+	push ax
+	push ds
+	mov ax, 0
+	mov ds, ax
+	add [error_count], dx
+	adc word [error_count + 2], 0
+	pop ds
+	pop ax
+	ret
+
+display_error_count:
+	push ax
+	push dx
+	push ds
+	mov ax, 0
+	mov ds, ax
+	mov ax, [error_count]
+	mov dx, [error_count + 2]
+	call display_dword
+	pop ds
+	pop dx
+	pop ax
+	ret
+
+	; Block number in AX
 display_current_block_address:
 	push ax
 	push cx
@@ -120,6 +181,18 @@ display_current_block_address:
 	call display_word
 	mov al, '0'
 	call display_char
+	pop cx
+	pop ax
+	ret
+
+	; Block stride in CX
+display_current_block_stride:
+	push ax
+	push cx
+	mov ax, cx
+	mov cl, 4 ; in KB
+	shl ax, cl
+	call display_word
 	pop cx
 	pop ax
 	ret
