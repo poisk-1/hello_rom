@@ -14,6 +14,9 @@ org 0
 	pop si
 %endmacro
 
+region_size equ 0x4000
+;region_size equ 0x200
+
 section .data
 noise:
 	incbin "noise.bin" 
@@ -35,7 +38,7 @@ next_test:
 	shr ax, cl
 	mov bx, ax ; number of 16K blocks in BX
 
-	mov ax, 1 ; don't test first 16K	
+	mov ax, 6 ; don't test first 96K	
 
 	mov cx, 2 ; stride in CX
 
@@ -132,7 +135,7 @@ setup_block_address:
 	pop cx
 	ret
 
-	; Fill 16K region at [ES:00] with noise
+	; Fill `region_size` region at [ES:00] with noise
 fill_region:
 	pushf
 	push ax
@@ -147,12 +150,12 @@ fill_region:
 	shr bx, cl
 	mov bl, [noise + bx] ; mixer in BL
 
-	mov cx, 0x4000
+	mov cx, region_size
 	mov si, noise
 	sub di, di
 	rep movsb
 
-	mov cx, 0x4000
+	mov cx, region_size
 	sub di, di
 .next_byte:
 	mov al, [es:di]
@@ -170,14 +173,14 @@ fill_region:
 	popf
 	ret
 
-	; Invert 16K region at [ES:00]
+	; Invert `region_size` region at [ES:00]
 invert_region:
 	pushf
 	push ax
 	push cx
 	push di
 
-	mov cx, 0x4000
+	mov cx, region_size
 	sub di, di
 .next_byte:
 	mov al, [es:di]
@@ -193,7 +196,7 @@ invert_region:
 	popf
 	ret
 
-	; Check 16K region at [ES:00] with noise
+	; Check `region_size` region at [ES:00] with noise
 check_region:
 	pushf
 	push ax
@@ -207,7 +210,7 @@ check_region:
 	shr bx, cl
 	mov bl, [noise + bx] ; mixer in BL
 
-	mov cx, 0x4000
+	mov cx, region_size
 	mov si, noise
 	sub di, di
 .next_byte:
@@ -233,7 +236,7 @@ check_region:
 	popf
 	ret
 
-	; Check 16K region at [ES:00] with inverted noise
+	; Check `region_size` region at [ES:00] with inverted noise
 	; Return: number of errors in DX
 check_inverted_region:
 	pushf
@@ -248,7 +251,7 @@ check_inverted_region:
 	shr bx, cl
 	mov bl, [noise + bx] ; mixer in BL
 
-	mov cx, 0x4000
+	mov cx, region_size
 	mov si, noise
 	sub di, di
 .next_byte:
@@ -436,3 +439,31 @@ cls:
 	int 10h
 	pop ax
 	ret
+
+	;DisplayString `IO RAM test\r\n\r\n`
+
+	;mov ax, 0xe000
+	;mov es, ax
+
+;next_io_block:
+	;sub dx, dx
+
+	;call fill_region
+	;call check_region
+	;call invert_region
+	;call check_inverted_region
+
+	;cmp dx, 0
+	;jne report_io_block_error
+	;DisplayString `OK\r\n`
+
+	;jmp next_io_block
+
+;report_io_block_error:
+	;DisplayString `FAIL\r\n`
+
+	;sub di, di
+	;call display_memory_block
+	;call read_char
+
+	;jmp next_io_block
