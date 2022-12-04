@@ -19,6 +19,7 @@ starting_block equ 6 ; don't test first 96K
 ;region_size equ 0x200
 
 error_count equ 0xff * 4
+cycle_count equ 0xff * 4 + 2
 
 section .data
 noise:
@@ -34,9 +35,8 @@ section .text
 
 	call cls
 	DisplayString `RAM test\r\n\r\n`
-
+	call reset_cycle_count
 	call reset_error_count
-
 	mov cx, 1 ; stride in CX
 
 next_test:
@@ -60,7 +60,7 @@ next_block:
 full_stride:
 	pop bx ; restore number of blocks
 
-	DisplayString `Testing range `
+	DisplayString `Range: `
 	call display_current_block_address
 	push ax
 	add ax, cx
@@ -114,10 +114,13 @@ stride_check_inverted_region:
 
 	cmp dx, 0
 	jne report_block_error
-	DisplayString `OK   `
+	DisplayString `OK  `
 
 finish_block:
+	DisplayString ` errors: 0x`
 	call display_error_count
+	DisplayString ` cycles: `
+	call display_cycle_count
 	DisplayString `\r\n`
 	cmp bx, ax
 	jg next_block ; is number of blocks greater than number of current block?
@@ -128,14 +131,50 @@ finish_block:
 	cmp cx, bx
 	jle increase_stride ; is stride less or equal then number of blocks minus number of starting block?
 	mov cx, 1 ; reset to stride of 1 block
+	call inc_cycle_count ; next cycle
 increase_stride:
 	pop bx
 	jmp next_test
 
 report_block_error:
-	DisplayString `FAIL `
+	DisplayString `FAIL`
 	call add_to_error_count
 	jmp finish_block
+
+reset_cycle_count:
+	push ax
+	push dx
+	push ds
+	mov ax, 0
+	mov ds, ax
+	mov [cycle_count], ax
+	pop ds
+	pop dx
+	pop ax
+	ret
+
+inc_cycle_count:
+	push ax
+	push ds
+	mov ax, 0
+	mov ds, ax
+	inc word [cycle_count]
+	pop ds
+	pop ax
+	ret
+
+display_cycle_count:
+	push ax
+	push dx
+	push ds
+	mov ax, 0
+	mov ds, ax
+	mov ax, [cycle_count]
+	call display_word_decimal
+	pop ds
+	pop dx
+	pop ax
+	ret
 
 reset_error_count:
 	push ax
