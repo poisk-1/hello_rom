@@ -15,6 +15,7 @@ org 0
 %endmacro
 
 region_size equ 0x4000
+starting_block equ 6 ; don't test first 96K
 ;region_size equ 0x200
 
 error_count equ 0xff * 4
@@ -45,7 +46,7 @@ next_test:
 	mov cl, 4
 	shr ax, cl
 	mov bx, ax ; number of blocks in BX
-	mov ax, 6 ; current block in AX (don't test first 96K)
+	mov ax, starting_block ; current block in AX
 	pop cx
 
 	push cx ; save stride
@@ -67,9 +68,9 @@ full_stride:
 	call display_current_block_address
 	pop ax
 
-	DisplayString ` (` 
+	DisplayString ` (size ` 
 	call display_current_block_stride
-	DisplayString `) ... ` 
+	DisplayString ` KiB) ... ` 
 
 	sub dx, dx
 
@@ -119,13 +120,16 @@ finish_block:
 	call display_error_count
 	DisplayString `\r\n`
 	cmp bx, ax
-	jg next_block
+	jg next_block ; is number of blocks greater than number of current block?
 	pop cx ; restore stride
 	inc cx
+	push bx
+	sub bx, starting_block
 	cmp cx, bx
-	jle increase_stride ; is stride less or equal then number of blocks?
+	jle increase_stride ; is stride less or equal then number of blocks minus number of starting block?
 	mov cx, 1 ; reset to stride of 1 block
 increase_stride:
+	pop bx
 	jmp next_test
 
 report_block_error:
@@ -192,7 +196,7 @@ display_current_block_stride:
 	mov ax, cx
 	mov cl, 4 ; in KB
 	shl ax, cl
-	call display_word
+	call display_word_decimal
 	pop cx
 	pop ax
 	ret
@@ -399,7 +403,39 @@ display_memory_line:
 	pop ax
 	ret
 
-	; Double word in AX
+	; Word in AX
+display_word_decimal:
+	push ax
+	push bx
+	push cx
+	push dx
+
+	mov bx, 5 ; show 5 digits
+	call .next
+
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+
+	ret
+
+.next:
+	mov dx, 0
+	mov cx, 10
+	div cx ; AX = DX:AX / CX, DX = DX:AX % CX
+	push dx ; push remainder
+	dec bx
+	jz .done
+	call .next
+
+.done:
+	pop ax ; pop remainder
+	add al, 0x30
+	call display_char
+	ret
+
+	; Word in AX
 display_word:
 	push ax
 	mov al, ah
