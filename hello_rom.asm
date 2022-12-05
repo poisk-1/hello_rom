@@ -18,8 +18,8 @@ region_size equ 0x4000
 starting_block equ 6 ; don't test first 96K
 ;region_size equ 0x200
 
-error_count equ 0xff * 4
-cycle_count equ 0xff * 4 + 2
+error_count equ (0x100 - 1) * 4
+cycle_count equ (0x100 - 2) * 4
 
 section .data
 noise:
@@ -125,7 +125,7 @@ finish_block:
 	cmp bx, ax
 	jg next_block ; is number of blocks greater than number of current block?
 	pop cx ; restore stride
-	inc cx
+	shl cx, 1
 	push bx
 	sub bx, starting_block
 	cmp cx, bx
